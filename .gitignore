@@ -1,0 +1,73 @@
+# Compiled object files
+*.o
+*.obj
+*.ko
+
+# Precompiled headers
+*.gch
+*.pch
+
+# Compiled dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Build directories
+build/
+Build/
+out/
+bin/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# IDE files (Visual Studio, CLion, etc.)
+.vs/
+.vscode/
+.idea/
+*.sln
+*.vcxproj*
+*.vcproj*
+*.user
+*.suo
+*.sdf
+*.opensdf
+
+# OpenCV - don't include the actual OpenCV library
+opencv/
+OpenCV/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Documentation
+docs/_build/
+
+# Test outputs
+test_outputs/
+*.jpg
+*.png
+*.bmp
