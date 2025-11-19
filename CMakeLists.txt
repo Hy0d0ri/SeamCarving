@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Windows example: set(OpenCV_DIR "C:/opencv/build")
 # Mac example: set(OpenCV_DIR "/usr/local/opt/opencv")
 # Linux: Usually auto-detected, but you can set it if needed
-set(OpenCV_DIR "D:/School/Year 3 Tri 1/Algorithm Analysis/Assignment 2/SeamCarving/opencv/build" CACHE PATH "OpenCV directory")
+set(OpenCV_DIR "D:/School/Year 3 Tri 1/Algorithm Analysis/Ass2 Final/SeamCarving/opencv/build" CACHE PATH "OpenCV directory")
 
 # Find OpenCV package
 find_package(OpenCV REQUIRED)

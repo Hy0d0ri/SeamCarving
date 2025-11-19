@@ -6,150 +6,169 @@ using namespace cv;
 using namespace std;
 
 int main(int argc, char** argv) {
-    cout << "Seam Carving - Dynamic Programming vs Greedy Algorithm" << endl;
-    cout << "======================================================" << endl;
+    cout << "Seam Carving - Dynamic Programming Implementation" << endl;
+    cout << "=================================================" << endl;
 
-    // Load test image from file
-    string image_path = "test_image.jpg";  // Change this to your image path
-    Mat image = imread(image_path);
+    // Load test image
+    string image_path = "test_image.jpg";
+    Mat original = imread(image_path);
 
-    if (image.empty()) {
-        cout << "Error: Could not load test image from: " << image_path << endl;
-        cout << "Please make sure 'test_image.jpg' is in the same folder as the executable." << endl;
+    if (original.empty()) {
+        cout << "Error: Could not load image from: " << image_path << endl;
+        cout << "Please make sure 'test_image.jpg' is in the same folder." << endl;
         return -1;
     }
 
-    cout << "Successfully loaded test image: " << image.cols << " x " << image.rows << endl;
+    cout << "Loaded image: " << original.cols << " x " << original.rows << endl;
 
-    SeamCarver carver(image);
-    Mat original = image.clone();
+    // Create seam carver with the original image
+    SeamCarver carver(original);
+    Mat carved = original.clone();
 
     cout << "\nControls:" << endl;
-    cout << "1 - Show DP Seam on original" << endl;
-    cout << "2 - Show Greedy Seam on original" << endl;
-    cout << "3 - Remove 10 seams with DP and show comparison" << endl;
-    cout << "4 - Remove 10 seams with Greedy and show comparison" << endl;
-    cout << "e - Show Energy Map" << endl;
-    cout << "r - Reset to original" << endl;
-    cout << "q - Quit" << endl;
+    cout << "  SPACE - Remove one seam using DP" << endl;
+    cout << "  V     - Show next seam (red) without removing" << endl;
+    cout << "  E     - Show energy map" << endl;
+    cout << "  R     - Reset to original" << endl;
+    cout << "  S     - Save current carved image" << endl;
+    cout << "  Q/ESC - Quit" << endl;
+    cout << "=================================================" << endl;
 
-    Mat display = image.clone();
-    string window_name = "Seam Carving - Press 1-4 for actions, q to quit LOL";
+    // Fixed window size for comparison view
+    const int DISPLAY_WIDTH = 1200;
+    const int DISPLAY_HEIGHT = 600;
+    const string WINDOW_NAME = "Seam Carving: Original (Left) vs Carved (Right)";
 
-    // Use WINDOW_NORMAL instead of WINDOW_AUTOSIZE so we can resize
-    namedWindow(window_name, WINDOW_NORMAL);
-    resizeWindow(window_name, 800, 600); // Set initial window size
-    imshow(window_name, display);
+    namedWindow(WINDOW_NAME, WINDOW_NORMAL);
+    resizeWindow(WINDOW_NAME, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+
+    int seams_removed = 0;
 
     while (true) {
-        int key = waitKey(0);
+        // Create side-by-side comparison
+        Mat display;
 
-        if (key == 'q') break;
+        // Resize images to fit in half the display width while maintaining aspect ratio
+        int target_width = DISPLAY_WIDTH / 2 - 20;
 
-        switch (key) {
-        case '1': { // Show DP seam on original
-            SeamCarver temp_carver(original);
+        Mat original_resized, carved_resized;
+        double scale_orig = (double)target_width / original.cols;
+        double scale_carved = (double)target_width / carved.cols;
+
+        // Use minimum scale to ensure both fit in height too
+        double max_height = DISPLAY_HEIGHT - 100;
+        scale_orig = min(scale_orig, max_height / original.rows);
+        scale_carved = min(scale_carved, max_height / carved.rows);
+
+        resize(original, original_resized, Size(), scale_orig, scale_orig);
+        resize(carved, carved_resized, Size(), scale_carved, scale_carved);
+
+        // Create black canvas
+        display = Mat::zeros(DISPLAY_HEIGHT, DISPLAY_WIDTH, CV_8UC3);
+
+        // Calculate positions to center images vertically
+        int y_offset_orig = (DISPLAY_HEIGHT - original_resized.rows) / 2;
+        int y_offset_carved = (DISPLAY_HEIGHT - carved_resized.rows) / 2;
+
+        // Place original on left
+        original_resized.copyTo(display(Rect(10, y_offset_orig,
+            original_resized.cols, original_resized.rows)));
+
+        // Place carved on right
+        int carved_x = DISPLAY_WIDTH / 2 + 10;
+        carved_resized.copyTo(display(Rect(carved_x, y_offset_carved,
+            carved_resized.cols, carved_resized.rows)));
+
+        // Add labels and info
+        putText(display, "ORIGINAL", Point(10, 30),
+            FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 255, 255), 2);
+        putText(display, format("Size: %dx%d", original.cols, original.rows),
+            Point(10, 60), FONT_HERSHEY_SIMPLEX, 0.6, Scalar(200, 200, 200), 1);
+
+        putText(display, "CARVED (DP)", Point(carved_x, 30),
+            FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 255, 255), 2);
+        putText(display, format("Size: %dx%d", carved.cols, carved.rows),
+            Point(carved_x, 60), FONT_HERSHEY_SIMPLEX, 0.6, Scalar(200, 200, 200), 1);
+        putText(display, format("Seams removed: %d", seams_removed),
+            Point(carved_x, 90), FONT_HERSHEY_SIMPLEX, 0.6, Scalar(100, 255, 100), 1);
+
+        // Add controls at bottom
+        int bottom_y = DISPLAY_HEIGHT - 30;
+        putText(display, "SPACE: Remove seam | V: Show seam | E: Energy | R: Reset | S: Save | Q: Quit",
+            Point(20, bottom_y), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(150, 150, 150), 1);
+
+        imshow(WINDOW_NAME, display);
+
+        int key = waitKey(30);
+
+        if (key == 27 || key == 'q' || key == 'Q') {  // ESC or Q
+            cout << "Exiting..." << endl;
+            break;
+        }
+        else if (key == ' ') {  // SPACE - Remove seam
+            if (carved.cols > 1) {
+                SeamCarver temp_carver(carved);
+                vector<int> seam = temp_carver.findVerticalSeamDP();
+
+                if (!seam.empty()) {
+                    temp_carver.removeVerticalSeam(seam);
+                    carved = temp_carver.getImage();
+                    seams_removed++;
+                    cout << "Seam removed! New size: " << carved.cols << "x" << carved.rows
+                        << " (" << seams_removed << " total seams)" << endl;
+                }
+            }
+            else {
+                cout << "Image too narrow to remove more seams!" << endl;
+            }
+        }
+        else if (key == 'v' || key == 'V') {  // Visualize next seam
+            SeamCarver temp_carver(carved);
             vector<int> seam = temp_carver.findVerticalSeamDP();
-            display = temp_carver.visualizeSeam(seam, Scalar(0, 0, 255));
-            cout << "Showing DP seam (Red) on original image" << endl;
-            break;
-        }
 
-        case '2': { // Show Greedy seam on original
-            SeamCarver temp_carver(original);
-            vector<int> seam = temp_carver.findVerticalSeamGreedy();
-            display = temp_carver.visualizeSeam(seam, Scalar(0, 255, 0));
-            cout << "Showing Greedy seam (Green) on original image" << endl;
-            break;
-        }
+            if (!seam.empty()) {
+                Mat seam_vis = temp_carver.visualizeSeam(seam, Scalar(0, 0, 255));
 
-        case '3': { // Remove multiple DP seams and show side-by-side
-            SeamCarver working_carver(original);
+                // Show in a separate window
+                namedWindow("Next Seam Preview (Red)", WINDOW_NORMAL);
+                resizeWindow("Next Seam Preview (Red)", 600, 500);
+                imshow("Next Seam Preview (Red)", seam_vis);
 
-            // Remove 10 seams
-            for (int i = 0; i < 10; i++) {
-                vector<int> seam = working_carver.findVerticalSeamDP();
-                working_carver.removeVerticalSeam(seam);
+                cout << "Showing next seam to be removed (red)" << endl;
             }
-
-            // Create side-by-side comparison
-            Mat comparison;
-            hconcat(original, working_carver.getImage(), comparison);
-
-            // Add labels
-            putText(comparison, "Original", Point(10, 30),
-                FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 255, 255), 2);
-            putText(comparison, "After 10 DP Seams", Point(original.cols + 10, 30),
-                FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 255, 255), 2);
-
-            display = comparison;
-            cout << "Removed 10 DP seams. New size: " << working_carver.getWidth() << "x" << working_carver.getHeight() << endl;
-
-            // Resize window to fit the comparison image
-            resizeWindow(window_name, min(1200, display.cols), min(800, display.rows));
-            break;
         }
+        else if (key == 'e' || key == 'E') {  // Show energy map
+            SeamCarver temp_carver(carved);
+            Mat energy = temp_carver.getEnergyMap();
 
-        case '4': { // Remove multiple Greedy seams and show side-by-side
-            SeamCarver working_carver(original);
+            // Normalize and apply colormap
+            Mat energy_normalized;
+            normalize(energy, energy_normalized, 0, 255, NORM_MINMAX);
+            energy_normalized.convertTo(energy_normalized, CV_8U);
 
-            // Remove 10 seams
-            for (int i = 0; i < 10; i++) {
-                vector<int> seam = working_carver.findVerticalSeamGreedy();
-                working_carver.removeVerticalSeam(seam);
-            }
+            Mat energy_color;
+            applyColorMap(energy_normalized, energy_color, COLORMAP_JET);
 
-            // Create side-by-side comparison
-            Mat comparison;
-            hconcat(original, working_carver.getImage(), comparison);
+            // Show in separate window
+            namedWindow("Energy Map (Red=High, Blue=Low)", WINDOW_NORMAL);
+            resizeWindow("Energy Map (Red=High, Blue=Low)", 600, 500);
+            imshow("Energy Map (Red=High, Blue=Low)", energy_color);
 
-            // Add labels
-            putText(comparison, "Original", Point(10, 30),
-                FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 255, 255), 2);
-            putText(comparison, "After 10 Greedy Seams", Point(original.cols + 10, 30),
-                FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 255, 255), 2);
-
-            display = comparison;
-            cout << "Removed 10 Greedy seams. New size: " << working_carver.getWidth() << "x" << working_carver.getHeight() << endl;
-
-            // Resize window to fit the comparison image
-            resizeWindow(window_name, min(1200, display.cols), min(800, display.rows));
-            break;
+            cout << "Energy map displayed (Blue=Low energy, Red=High energy)" << endl;
         }
-
-        case 'e': { // Show energy map
-            SeamCarver temp_carver(original);
-            Mat energy_display;
-            applyColorMap(temp_carver.getEnergyMap(), energy_display, COLORMAP_JET);
-
-            // Resize energy map to match original if needed
-            if (energy_display.size() != original.size()) {
-                resize(energy_display, energy_display, original.size());
-            }
-
-            // Show energy map explanation
-            Mat energy_with_text = energy_display.clone();
-            putText(energy_with_text, "ENERGY MAP: Red=High Energy (Keep), Blue=Low Energy (Remove)",
-                Point(10, 30), FONT_HERSHEY_SIMPLEX, 0.7, Scalar(255, 255, 255), 2);
-
-            imshow("Energy Map", energy_with_text);
-            cout << "Energy map displayed in separate window" << endl;
-            cout << "Red/Yellow areas = Important content, Blue areas = Can be removed" << endl;
-            continue; // Don't update main window
-        }
-
-        case 'r': { // Reset
-            display = original.clone();
+        else if (key == 'r' || key == 'R') {  // Reset
+            carved = original.clone();
+            seams_removed = 0;
             cout << "Reset to original image" << endl;
-            // Reset window size
-            resizeWindow(window_name, 800, 600);
-            break;
         }
+        else if (key == 's' || key == 'S') {  // Save
+            string output_path = format("carved_output_%dseams.jpg", seams_removed);
+            imwrite(output_path, carved);
+            cout << "Saved carved image to: " << output_path << endl;
         }
-
-        imshow(window_name, display);
     }
 
-    cout << "Program ended successfully!" << endl;
+    destroyAllWindows();
+    cout << "\nProgram ended. Total seams removed: " << seams_removed << endl;
     return 0;
 }
