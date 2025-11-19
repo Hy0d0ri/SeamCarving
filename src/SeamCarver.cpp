@@ -75,7 +75,7 @@ vector<int> SeamCarver::findVerticalSeamDP() {
         dp.at<double>(0, j) = energy.at<float>(0, j);
     }
 
-    // Fill DP table row by row
+    // Fill DP table row by row (top to bottom)
     for (int i = 1; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
             // Start with pixel directly above
@@ -128,6 +128,86 @@ vector<int> SeamCarver::findVerticalSeamDP() {
     return seam;
 }
 
+vector<int> SeamCarver::findHorizontalSeamDP() {
+    Mat energy = computeEnergyMap();
+
+    if (energy.empty()) {
+        cerr << "Error: Energy map is empty!" << endl;
+        return vector<int>();
+    }
+
+    int rows = energy.rows;
+    int cols = energy.cols;
+
+    if (rows == 0 || cols == 0) {
+        cerr << "Error: Energy map has zero dimensions!" << endl;
+        return vector<int>();
+    }
+
+    // DP table: stores minimum cumulative energy to reach each pixel
+    Mat dp(rows, cols, CV_64F);
+
+    // Backtrack table: stores which row in previous column led to minimum
+    Mat backtrack(rows, cols, CV_32S);
+
+    // Initialize first column with energy values
+    for (int i = 0; i < rows; i++) {
+        dp.at<double>(i, 0) = energy.at<float>(i, 0);
+    }
+
+    // Fill DP table column by column (left to right)
+    for (int j = 1; j < cols; j++) {
+        for (int i = 0; i < rows; i++) {
+            // Start with pixel directly to the left
+            double min_energy = dp.at<double>(i, j - 1);
+            int min_row = i;
+
+            // Check upper-left diagonal (if exists)
+            if (i > 0) {
+                double upper_left = dp.at<double>(i - 1, j - 1);
+                if (upper_left < min_energy) {
+                    min_energy = upper_left;
+                    min_row = i - 1;
+                }
+            }
+
+            // Check lower-left diagonal (if exists)
+            if (i < rows - 1) {
+                double lower_left = dp.at<double>(i + 1, j - 1);
+                if (lower_left < min_energy) {
+                    min_energy = lower_left;
+                    min_row = i + 1;
+                }
+            }
+
+            // Store cumulative energy and backtrack info
+            dp.at<double>(i, j) = energy.at<float>(i, j) + min_energy;
+            backtrack.at<int>(i, j) = min_row;
+        }
+    }
+
+    // Find minimum energy in last column
+    int min_row = 0;
+    double min_energy = dp.at<double>(0, cols - 1);
+
+    for (int i = 1; i < rows; i++) {
+        if (dp.at<double>(i, cols - 1) < min_energy) {
+            min_energy = dp.at<double>(i, cols - 1);
+            min_row = i;
+        }
+    }
+
+    // Backtrack to find the seam path
+    vector<int> seam(cols);
+    seam[cols - 1] = min_row;
+
+    for (int j = cols - 2; j >= 0; j--) {
+        seam[j] = backtrack.at<int>(seam[j + 1], j + 1);
+    }
+
+    return seam;
+}
+
 void SeamCarver::removeVerticalSeam(const vector<int>& seam) {
     if (seam.size() != image_.rows) {
         cerr << "Error: Seam size (" << seam.size()
@@ -166,7 +246,45 @@ void SeamCarver::removeVerticalSeam(const vector<int>& seam) {
     image_ = new_image;
 }
 
-Mat SeamCarver::visualizeSeam(const vector<int>& seam, const Scalar& color) {
+void SeamCarver::removeHorizontalSeam(const vector<int>& seam) {
+    if (seam.size() != image_.cols) {
+        cerr << "Error: Seam size (" << seam.size()
+            << ") doesn't match image width (" << image_.cols << ")!" << endl;
+        return;
+    }
+
+    if (image_.rows <= 1) {
+        cerr << "Error: Image is too short to remove more seams!" << endl;
+        return;
+    }
+
+    // Create new image with one less row
+    Mat new_image(image_.rows - 1, image_.cols, image_.type());
+
+    for (int j = 0; j < image_.cols; j++) {
+        int seam_row = seam[j];
+
+        // Validate seam position
+        if (seam_row < 0 || seam_row >= image_.rows) {
+            cerr << "Error: Invalid seam position at col " << j
+                << ": " << seam_row << " (rows: " << image_.rows << ")" << endl;
+            return;
+        }
+
+        // Copy all pixels except the seam pixel
+        for (int i = 0; i < seam_row; i++) {
+            new_image.at<Vec3b>(i, j) = image_.at<Vec3b>(i, j);
+        }
+
+        for (int i = seam_row + 1; i < image_.rows; i++) {
+            new_image.at<Vec3b>(i - 1, j) = image_.at<Vec3b>(i, j);
+        }
+    }
+
+    image_ = new_image;
+}
+
+Mat SeamCarver::visualizeVerticalSeam(const vector<int>& seam, const Scalar& color) {
     if (seam.size() != image_.rows) {
         cerr << "Error: Seam size doesn't match image height in visualization!" << endl;
         return image_.clone();
@@ -190,6 +308,40 @@ Mat SeamCarver::visualizeSeam(const vector<int>& seam, const Scalar& color) {
             }
             if (col < result.cols - 1) {
                 Vec3b& pixel = result.at<Vec3b>(i, col + 1);
+                pixel[0] = (pixel[0] + color[0]) / 2;
+                pixel[1] = (pixel[1] + color[1]) / 2;
+                pixel[2] = (pixel[2] + color[2]) / 2;
+            }
+        }
+    }
+
+    return result;
+}
+
+Mat SeamCarver::visualizeHorizontalSeam(const vector<int>& seam, const Scalar& color) {
+    if (seam.size() != image_.cols) {
+        cerr << "Error: Seam size doesn't match image width in visualization!" << endl;
+        return image_.clone();
+    }
+
+    Mat result = image_.clone();
+
+    // Draw the seam with specified color
+    for (int j = 0; j < seam.size(); j++) {
+        int row = seam[j];
+        if (row >= 0 && row < result.rows) {
+            // Make seam more visible by drawing a thicker line
+            result.at<Vec3b>(row, j) = Vec3b(color[0], color[1], color[2]);
+
+            // Optional: make it thicker for better visibility
+            if (row > 0) {
+                Vec3b& pixel = result.at<Vec3b>(row - 1, j);
+                pixel[0] = (pixel[0] + color[0]) / 2;
+                pixel[1] = (pixel[1] + color[1]) / 2;
+                pixel[2] = (pixel[2] + color[2]) / 2;
+            }
+            if (row < result.rows - 1) {
+                Vec3b& pixel = result.at<Vec3b>(row + 1, j);
                 pixel[0] = (pixel[0] + color[0]) / 2;
                 pixel[1] = (pixel[1] + color[1]) / 2;
                 pixel[2] = (pixel[2] + color[2]) / 2;

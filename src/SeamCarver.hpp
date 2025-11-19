@@ -10,12 +10,15 @@ public:
 
     // Dynamic Programming seam finding
     std::vector<int> findVerticalSeamDP();
+    std::vector<int> findHorizontalSeamDP();
 
-    // Remove a vertical seam from the image
+    // Remove seams from the image
     void removeVerticalSeam(const std::vector<int>& seam);
+    void removeHorizontalSeam(const std::vector<int>& seam);
 
-    // Visualize a seam on the image
-    cv::Mat visualizeSeam(const std::vector<int>& seam, const cv::Scalar& color = cv::Scalar(0, 0, 255));
+    // Visualize seams on the image
+    cv::Mat visualizeVerticalSeam(const std::vector<int>& seam, const cv::Scalar& color = cv::Scalar(0, 0, 255));
+    cv::Mat visualizeHorizontalSeam(const std::vector<int>& seam, const cv::Scalar& color = cv::Scalar(0, 255, 0));
 
     // Getters
     cv::Mat getImage() const { return image_.clone(); }

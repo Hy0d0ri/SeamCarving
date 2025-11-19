@@ -22,16 +22,17 @@ int main(int argc, char** argv) {
     cout << "Loaded image: " << original.cols << " x " << original.rows << endl;
 
     // Create seam carver with the original image
-    SeamCarver carver(original);
     Mat carved = original.clone();
 
     cout << "\nControls:" << endl;
-    cout << "  SPACE - Remove one seam using DP" << endl;
-    cout << "  V     - Show next seam (red) without removing" << endl;
-    cout << "  E     - Show energy map" << endl;
-    cout << "  R     - Reset to original" << endl;
-    cout << "  S     - Save current carved image" << endl;
-    cout << "  Q/ESC - Quit" << endl;
+    cout << "  V/SPACE  - Remove one VERTICAL seam using DP" << endl;
+    cout << "  H        - Remove one HORIZONTAL seam using DP" << endl;
+    cout << "  1        - Show next VERTICAL seam (red) without removing" << endl;
+    cout << "  2        - Show next HORIZONTAL seam (green) without removing" << endl;
+    cout << "  E        - Show energy map" << endl;
+    cout << "  R        - Reset to original" << endl;
+    cout << "  S        - Save current carved image" << endl;
+    cout << "  Q/ESC    - Quit" << endl;
     cout << "=================================================" << endl;
 
     // Fixed window size for comparison view
@@ -42,7 +43,8 @@ int main(int argc, char** argv) {
     namedWindow(WINDOW_NAME, WINDOW_NORMAL);
     resizeWindow(WINDOW_NAME, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 
-    int seams_removed = 0;
+    int vertical_seams_removed = 0;
+    int horizontal_seams_removed = 0;
 
     while (true) {
         // Create side-by-side comparison
@@ -89,12 +91,12 @@ int main(int argc, char** argv) {
             FONT_HERSHEY_SIMPLEX, 1, Scalar(255, 255, 255), 2);
         putText(display, format("Size: %dx%d", carved.cols, carved.rows),
             Point(carved_x, 60), FONT_HERSHEY_SIMPLEX, 0.6, Scalar(200, 200, 200), 1);
-        putText(display, format("Seams removed: %d", seams_removed),
+        putText(display, format("V-Seams: %d | H-Seams: %d", vertical_seams_removed, horizontal_seams_removed),
             Point(carved_x, 90), FONT_HERSHEY_SIMPLEX, 0.6, Scalar(100, 255, 100), 1);
 
         // Add controls at bottom
         int bottom_y = DISPLAY_HEIGHT - 30;
-        putText(display, "SPACE: Remove seam | V: Show seam | E: Energy | R: Reset | S: Save | Q: Quit",
+        putText(display, "V/SPACE: Vertical | H: Horizontal | 1/2: Preview | E: Energy | R: Reset | S: Save | Q: Quit",
             Point(20, bottom_y), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(150, 150, 150), 1);
 
         imshow(WINDOW_NAME, display);
@@ -105,7 +107,7 @@ int main(int argc, char** argv) {
             cout << "Exiting..." << endl;
             break;
         }
-        else if (key == ' ') {  // SPACE - Remove seam
+        else if (key == ' ' || key == 'v' || key == 'V') {  // SPACE or V - Remove vertical seam
             if (carved.cols > 1) {
                 SeamCarver temp_carver(carved);
                 vector<int> seam = temp_carver.findVerticalSeamDP();
@@ -113,28 +115,60 @@ int main(int argc, char** argv) {
                 if (!seam.empty()) {
                     temp_carver.removeVerticalSeam(seam);
                     carved = temp_carver.getImage();
-                    seams_removed++;
-                    cout << "Seam removed! New size: " << carved.cols << "x" << carved.rows
-                        << " (" << seams_removed << " total seams)" << endl;
+                    vertical_seams_removed++;
+                    cout << "Vertical seam removed! New size: " << carved.cols << "x" << carved.rows
+                        << " (V:" << vertical_seams_removed << ", H:" << horizontal_seams_removed << ")" << endl;
                 }
             }
             else {
-                cout << "Image too narrow to remove more seams!" << endl;
+                cout << "Image too narrow to remove more vertical seams!" << endl;
             }
         }
-        else if (key == 'v' || key == 'V') {  // Visualize next seam
+        else if (key == 'h' || key == 'H') {  // H - Remove horizontal seam
+            if (carved.rows > 1) {
+                SeamCarver temp_carver(carved);
+                vector<int> seam = temp_carver.findHorizontalSeamDP();
+
+                if (!seam.empty()) {
+                    temp_carver.removeHorizontalSeam(seam);
+                    carved = temp_carver.getImage();
+                    horizontal_seams_removed++;
+                    cout << "Horizontal seam removed! New size: " << carved.cols << "x" << carved.rows
+                        << " (V:" << vertical_seams_removed << ", H:" << horizontal_seams_removed << ")" << endl;
+                }
+            }
+            else {
+                cout << "Image too short to remove more horizontal seams!" << endl;
+            }
+        }
+        else if (key == '1') {  // Visualize next vertical seam
             SeamCarver temp_carver(carved);
             vector<int> seam = temp_carver.findVerticalSeamDP();
 
             if (!seam.empty()) {
-                Mat seam_vis = temp_carver.visualizeSeam(seam, Scalar(0, 0, 255));
+                Mat seam_vis = temp_carver.visualizeVerticalSeam(seam, Scalar(0, 0, 255));
 
                 // Show in a separate window
-                namedWindow("Next Seam Preview (Red)", WINDOW_NORMAL);
-                resizeWindow("Next Seam Preview (Red)", 600, 500);
-                imshow("Next Seam Preview (Red)", seam_vis);
+                namedWindow("Next VERTICAL Seam Preview (Red)", WINDOW_NORMAL);
+                resizeWindow("Next VERTICAL Seam Preview (Red)", 600, 500);
+                imshow("Next VERTICAL Seam Preview (Red)", seam_vis);
 
-                cout << "Showing next seam to be removed (red)" << endl;
+                cout << "Showing next VERTICAL seam to be removed (red)" << endl;
+            }
+        }
+        else if (key == '2') {  // Visualize next horizontal seam
+            SeamCarver temp_carver(carved);
+            vector<int> seam = temp_carver.findHorizontalSeamDP();
+
+            if (!seam.empty()) {
+                Mat seam_vis = temp_carver.visualizeHorizontalSeam(seam, Scalar(0, 255, 0));
+
+                // Show in a separate window
+                namedWindow("Next HORIZONTAL Seam Preview (Green)", WINDOW_NORMAL);
+                resizeWindow("Next HORIZONTAL Seam Preview (Green)", 600, 500);
+                imshow("Next HORIZONTAL Seam Preview (Green)", seam_vis);
+
+                cout << "Showing next HORIZONTAL seam to be removed (green)" << endl;
             }
         }
         else if (key == 'e' || key == 'E') {  // Show energy map
@@ -158,17 +192,20 @@ int main(int argc, char** argv) {
         }
         else if (key == 'r' || key == 'R') {  // Reset
             carved = original.clone();
-            seams_removed = 0;
+            vertical_seams_removed = 0;
+            horizontal_seams_removed = 0;
             cout << "Reset to original image" << endl;
         }
         else if (key == 's' || key == 'S') {  // Save
-            string output_path = format("carved_output_%dseams.jpg", seams_removed);
+            string output_path = format("carved_output_V%d_H%d.jpg", vertical_seams_removed, horizontal_seams_removed);
             imwrite(output_path, carved);
             cout << "Saved carved image to: " << output_path << endl;
         }
     }
 
     destroyAllWindows();
-    cout << "\nProgram ended. Total seams removed: " << seams_removed << endl;
+    cout << "\nProgram ended." << endl;
+    cout << "Vertical seams removed: " << vertical_seams_removed << endl;
+    cout << "Horizontal seams removed: " << horizontal_seams_removed << endl;
     return 0;
 }
