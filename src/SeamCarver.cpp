@@ -48,6 +48,10 @@ Mat SeamCarver::getEnergyMap() const {
     return computeEnergyMap();
 }
 
+// ============================================================================
+// DYNAMIC PROGRAMMING IMPLEMENTATION
+// ============================================================================
+
 vector<int> SeamCarver::findVerticalSeamDP() {
     Mat energy = computeEnergyMap();
 
@@ -208,6 +212,122 @@ vector<int> SeamCarver::findHorizontalSeamDP() {
     return seam;
 }
 
+// ============================================================================
+// GREEDY ALGORITHM IMPLEMENTATION
+// TODO: Update dis shizz
+// Current implementation: Simple greedy that picks minimum energy neighbor
+// ============================================================================
+
+vector<int> SeamCarver::findVerticalSeamGreedy() {
+    Mat energy = computeEnergyMap();
+
+    if (energy.empty()) {
+        cerr << "Error: Energy map is empty!" << endl;
+        return vector<int>();
+    }
+
+    int rows = energy.rows;
+    int cols = energy.cols;
+
+    if (rows == 0 || cols == 0) {
+        cerr << "Error: Energy map has zero dimensions!" << endl;
+        return vector<int>();
+    }
+
+    vector<int> seam(rows);
+
+    // Start from the minimum energy pixel in the first row
+    int current_col = 0;
+    float min_energy = energy.at<float>(0, 0);
+    for (int j = 1; j < cols; j++) {
+        if (energy.at<float>(0, j) < min_energy) {
+            min_energy = energy.at<float>(0, j);
+            current_col = j;
+        }
+    }
+    seam[0] = current_col;
+
+    // Greedy selection: at each row, pick the neighbor with minimum energy
+    for (int i = 1; i < rows; i++) {
+        int best_col = current_col;
+        float best_energy = energy.at<float>(i, current_col);
+
+        // Check left neighbor
+        if (current_col > 0 && energy.at<float>(i, current_col - 1) < best_energy) {
+            best_energy = energy.at<float>(i, current_col - 1);
+            best_col = current_col - 1;
+        }
+
+        // Check right neighbor
+        if (current_col < cols - 1 && energy.at<float>(i, current_col + 1) < best_energy) {
+            best_energy = energy.at<float>(i, current_col + 1);
+            best_col = current_col + 1;
+        }
+
+        seam[i] = best_col;
+        current_col = best_col;
+    }
+
+    return seam;
+}
+
+vector<int> SeamCarver::findHorizontalSeamGreedy() {
+    Mat energy = computeEnergyMap();
+
+    if (energy.empty()) {
+        cerr << "Error: Energy map is empty!" << endl;
+        return vector<int>();
+    }
+
+    int rows = energy.rows;
+    int cols = energy.cols;
+
+    if (rows == 0 || cols == 0) {
+        cerr << "Error: Energy map has zero dimensions!" << endl;
+        return vector<int>();
+    }
+
+    vector<int> seam(cols);
+
+    // Start from the minimum energy pixel in the first column
+    int current_row = 0;
+    float min_energy = energy.at<float>(0, 0);
+    for (int i = 1; i < rows; i++) {
+        if (energy.at<float>(i, 0) < min_energy) {
+            min_energy = energy.at<float>(i, 0);
+            current_row = i;
+        }
+    }
+    seam[0] = current_row;
+
+    // Greedy selection: at each column, pick the neighbor with minimum energy
+    for (int j = 1; j < cols; j++) {
+        int best_row = current_row;
+        float best_energy = energy.at<float>(current_row, j);
+
+        // Check upper neighbor
+        if (current_row > 0 && energy.at<float>(current_row - 1, j) < best_energy) {
+            best_energy = energy.at<float>(current_row - 1, j);
+            best_row = current_row - 1;
+        }
+
+        // Check lower neighbor
+        if (current_row < rows - 1 && energy.at<float>(current_row + 1, j) < best_energy) {
+            best_energy = energy.at<float>(current_row + 1, j);
+            best_row = current_row + 1;
+        }
+
+        seam[j] = best_row;
+        current_row = best_row;
+    }
+
+    return seam;
+}
+
+// ============================================================================
+// SEAM REMOVAL FUNCTIONS
+// ============================================================================
+
 void SeamCarver::removeVerticalSeam(const vector<int>& seam) {
     if (seam.size() != image_.rows) {
         cerr << "Error: Seam size (" << seam.size()
@@ -283,6 +403,10 @@ void SeamCarver::removeHorizontalSeam(const vector<int>& seam) {
 
     image_ = new_image;
 }
+
+// ============================================================================
+// VISUALIZATION FUNCTIONS
+// ============================================================================
 
 Mat SeamCarver::visualizeVerticalSeam(const vector<int>& seam, const Scalar& color) {
     if (seam.size() != image_.rows) {

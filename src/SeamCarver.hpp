@@ -12,6 +12,10 @@ public:
     std::vector<int> findVerticalSeamDP();
     std::vector<int> findHorizontalSeamDP();
 
+    // Greedy Algorithm seam finding (TODO)
+    std::vector<int> findVerticalSeamGreedy();
+    std::vector<int> findHorizontalSeamGreedy();
+
     // Remove seams from the image
     void removeVerticalSeam(const std::vector<int>& seam);
     void removeHorizontalSeam(const std::vector<int>& seam);
