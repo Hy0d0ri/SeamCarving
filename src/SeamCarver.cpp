@@ -219,11 +219,101 @@ vector<int> SeamCarver::findHorizontalSeamDP() {
 // ============================================================================
 
 vector<int> SeamCarver::findVerticalSeamGreedy() {
-    
+    Mat energy = computeEnergyMap();
+    int rows = energy.rows;
+    int cols = energy.cols;
+
+    vector<int> seam(rows);
+
+    //pick minimum energy pixel in first row
+    float min_val = energy.at<float>(0, 0);
+    int min_col = 0;
+    for (int j = 1; j < cols; j++) {
+        float val = energy.at<float>(0, j);
+        if (val < min_val) {
+            min_val = val;
+            min_col = j;
+        }
+    }
+    seam[0] = min_col;
+
+    //row by row pick minimum of neighbors
+    for (int i = 1; i < rows; i++) {
+        int prev_col = seam[i - 1];
+        int best_col = prev_col;
+        float best_energy = energy.at<float>(i, prev_col);
+
+        //top left
+        if (prev_col > 0) {
+            float leftE = energy.at<float>(i, prev_col - 1);
+            if (leftE < best_energy) {
+                best_energy = leftE;
+                best_col = prev_col - 1;
+            }
+        }
+
+        //top right
+        if (prev_col < cols - 1) {
+            float rightE = energy.at<float>(i, prev_col + 1);
+            if (rightE < best_energy) {
+                best_energy = rightE;
+                best_col = prev_col + 1;
+            }
+        }
+
+        seam[i] = best_col;
+    }
+
+    return seam;
 }
 
 vector<int> SeamCarver::findHorizontalSeamGreedy() {
-    
+    Mat energy = computeEnergyMap();
+    int rows = energy.rows;
+    int cols = energy.cols;
+
+    vector<int> seam(cols);
+
+    //pick minimum energy pixel in first column
+    float min_val = energy.at<float>(0, 0);
+    int min_row = 0;
+    for (int i = 1; i < rows; i++) {
+        float val = energy.at<float>(i, 0);
+        if (val < min_val) {
+            min_val = val;
+            min_row = i;
+        }
+    }
+    seam[0] = min_row;
+
+    //column by column pick minimum neighbor
+    for (int j = 1; j < cols; j++) {
+        int prev_row = seam[j - 1];
+        int best_row = prev_row;
+        float best_energy = energy.at<float>(prev_row, j);
+
+        //top left
+        if (prev_row > 0) {
+            float upE = energy.at<float>(prev_row - 1, j);
+            if (upE < best_energy) {
+                best_energy = upE;
+                best_row = prev_row - 1;
+            }
+        }
+
+        //bottom left
+        if (prev_row < rows - 1) {
+            float downE = energy.at<float>(prev_row + 1, j);
+            if (downE < best_energy) {
+                best_energy = downE;
+                best_row = prev_row + 1;
+            }
+        }
+
+        seam[j] = best_row;
+    }
+
+    return seam;
 }
 
 // ============================================================================
