@@ -43,10 +43,6 @@ Makefile
 *.sdf
 *.opensdf
 
-# OpenCV - don't include the actual OpenCV library
-opencv/
-OpenCV/
-
 # OS generated files
 .DS_Store
 .DS_Store?
@@ -65,9 +61,3 @@ Thumbs.db
 
 # Documentation
 docs/_build/
-
-# Test outputs
-test_outputs/
-*.jpg
-*.png
-*.bmp
